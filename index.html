@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MEZ Consultoria · Painel Julia</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #080D0A; }
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: #080D0A; }
+  ::-webkit-scrollbar-thumb { background: #1A2E20; border-radius: 4px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+
+// Recharts via CDN
+const { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip,
+        ResponsiveContainer, Legend } = Recharts;
+const { useState, useEffect } = React;
+
+
+
+
+// ══════════════════════════════════════════════════════════════════════════
+// CONFIGURAÇÃO — cole aqui a URL do seu Google Sheets publicado como CSV
+// Instruções: Arquivo → Publicar na web → Selecionar aba → CSV → Copiar link
+// ══════════════════════════════════════════════════════════════════════════
+const SHEETS_CONFIG = {
+  cadastro:   "https://docs.google.com/spreadsheets/d/e/2PACX-1vTpEHU3P-ywfILxDAhDN51vzpKclP2Y96fr1nlVObbG1ql0bhJ1Rbquaovhfo2_pjf9PHeyW2SrH1aL/pub?gid=2061982684&single=true&output=csv",
+  pagamentos: "https://docs.google.com/spreadsheets/d/e/2PACX-1vTpEHU3P-ywfILxDAhDN51vzpKclP2Y96fr1nlVObbG1ql0bhJ1Rbquaovhfo2_pjf9PHeyW2SrH1aL/pub?gid=251360175&single=true&output=csv",
+  reunioes:   "https://docs.google.com/spreadsheets/d/e/2PACX-1vTpEHU3P-ywfILxDAhDN51vzpKclP2Y96fr1nlVObbG1ql0bhJ1Rbquaovhfo2_pjf9PHeyW2SrH1aL/pub?gid=27502929&single=true&output=csv",
+};
+
+// Dados de demonstração (usados enquanto não conectar o Sheets)
+const DEMO_DATA = {
+  cadastro: [
+    { id:"001", nome:"Lívia de Moyses Moura",   email:"livia_dmm@hotmail.com",            tel:"+55 (27) 99829-1920", data:"04/05/2026", statusReuniao:"✅ Reunião feita",    statusComercial:"🟢 Fechou",       etapa:"🔄 Mês 1 — Diagnóstico", area:"",                   renda:"",                        obs:"" },
+    { id:"002", nome:"Fernanda Cardoso",         email:"cardoso.fernanda94@outlook.com",   tel:"+55 (11) 99802-6988", data:"13/05/2026", statusReuniao:"🔄 Aguardando retorno",statusComercial:"🔵 Em andamento",etapa:"",                       area:"College Counselor",  renda:"R$10.000–R$15.000",       obs:"2ª reunião para confirmar" },
+    { id:"003", nome:"Carla Tafner",             email:"carla.tafner@gmail.com",           tel:"",                    data:"18/05/2026", statusReuniao:"⏰ Aguardando reunião",statusComercial:"🔵 Em andamento",etapa:"",                       area:"",                   renda:"",                        obs:"" },
+    { id:"004", nome:"Marla Diniz",              email:"marladiniz@gmail.com",             tel:"+55 (67) 99177-7077", data:"19/05/2026", statusReuniao:"⏰ Aguardando reunião",statusComercial:"🔵 Em andamento",etapa:"",                       area:"Advogada",           renda:"R$25.000–R$50.000",       obs:"" },
+    { id:"005", nome:"Lorena de Oliveira",       email:"lorenapereiraa31@gmail.com",       tel:"+55 (71) 98245-8975", data:"21/05/2026", statusReuniao:"⏰ Aguardando reunião",statusComercial:"🔵 Em andamento",etapa:"",                       area:"Nutricionista",      renda:"R$5.000–R$10.000",        obs:"" },
+    { id:"006", nome:"Maria González",           email:"mariangief@gmail.com",             tel:"+55 (21) 99261-8733", data:"21/05/2026", statusReuniao:"⏰ Aguardando reunião",statusComercial:"🔵 Em andamento",etapa:"",                       area:"Engenharia",         renda:"R$15.000–R$25.000",       obs:"" },
+    { id:"007", nome:"Maria Emília Probst",      email:"melp__@hotmail.com",               tel:"+55 (66) 8424-9718",  data:"04/05/2026", statusReuniao:"✅ Reunião feita",    statusComercial:"🔴 Não fechou",   etapa:"",                       area:"",                   renda:"",                        obs:"" },
+  ],
+  pagamentos: [
+    { id:"1", cliente:"Lívia de Moyses Moura", venc:"06/05/2026", pago:"08/05/2026", honorarios:1500, comissao:300,  status:"✅ Pago",     forma:"PIX", obs:"1ª parcela de 3" },
+    { id:"2", cliente:"Lívia de Moyses Moura", venc:"06/06/2026", pago:"",           honorarios:0,    comissao:0,    status:"⏳ Pendente", forma:"PIX", obs:"2ª parcela de 3" },
+    { id:"3", cliente:"Lívia de Moyses Moura", venc:"06/07/2026", pago:"",           honorarios:0,    comissao:0,    status:"⏳ Pendente", forma:"PIX", obs:"3ª parcela de 3" },
+  ],
+  reunioes: [
+    { id:"1", cliente:"Maria Emília Probst",   data:"04/05/2026", tipo:"Descoberta", resp:"Carol", resultado:"❌ Não avançou", proxima:"Não fechou" },
+    { id:"2", cliente:"Lívia de Moyses Moura", data:"04/05/2026", tipo:"Descoberta", resp:"Carol", resultado:"✅ Fechou",      proxima:"Enviar contrato + onboarding" },
+    { id:"3", cliente:"Fernanda Cardoso",      data:"13/05/2026", tipo:"Descoberta", resp:"Carol", resultado:"🔄 Continua",    proxima:"2ª reunião pendente" },
+    { id:"4", cliente:"Carla Tafner",          data:"18/05/2026", tipo:"Descoberta", resp:"Carol", resultado:"",              proxima:"" },
+    { id:"5", cliente:"Marla Diniz",           data:"19/05/2026", tipo:"Descoberta", resp:"Carol", resultado:"",              proxima:"" },
+    { id:"6", cliente:"Lorena de Oliveira",    data:"21/05/2026", tipo:"Descoberta", resp:"Carol", resultado:"",              proxima:"" },
+    { id:"7", cliente:"Maria Gonzalez",        data:"21/05/2026", tipo:"Descoberta", resp:"Carol", resultado:"",              proxima:"" },
+    { id:"8", cliente:"Fernanda Cardoso",      data:"18/05/2026", tipo:"Retorno",    resp:"Carol", resultado:"",              proxima:"Confirmar fechamento" },
+  ],
+};
+
+// ── Paleta MEZ ─────────────────────────────────────────────────────────────
+const C = {
+  verde:  "#0F3123", forest: "#46594E", navy:   "#2A293E",
+  sage:   "#AFB197", cream:  "#F1ECE3", gold:   "#C9A96E",
+  green:  "#2D6A4F", red:    "#8B2020", white:  "#FFFFFF",
+  bg:     "#080D0A", card:   "#0F1812", cardB:  "#1A2E20",
+  muted:  "#5A6B5E", text:   "#C8D4CC",
+};
+
+const PIE_COLORS  = [C.gold, C.forest, C.red, C.sage];
+const BAR_COLORS  = [C.gold, C.forest, C.red];
+
+// ── CSV Parser ──────────────────────────────────────────────────────────────
+function parseCSV(text) {
+  const lines = text.trim().split("\n").filter(l => l.trim());
+  if (lines.length < 2) return [];
+  const headers = lines[0].split(",").map(h => h.trim().replace(/^"|"$/g,""));
+  return lines.slice(1).map(line => {
+    const vals = [];
+    let cur = "", inQ = false;
+    for (let ch of line) {
+      if (ch === '"') { inQ = !inQ; }
+      else if (ch === "," && !inQ) { vals.push(cur.trim()); cur = ""; }
+      else cur += ch;
+    }
+    vals.push(cur.trim());
+    return Object.fromEntries(headers.map((h, i) => [h, (vals[i]||"").replace(/^"|"$/g,"")]));
+  });
+}
+
+// Normaliza campos CSV para nomes esperados pelo dashboard
+function normalizeCadastro(rows) {
+  return rows.filter(r => r["Nome"] || r["NOME"]).map((r, i) => ({
+    id:              r["#"] || String(i+1).padStart(3,"0"),
+    nome:            r["Nome"] || "",
+    email:           r["E-mail"] || r["Email"] || "",
+    tel:             r["WhatsApp"] || "",
+    data:            r["Data 1ª Reunião"] || r["Data 1a Reuniao"] || "",
+    statusReuniao:   r["Status Reunião"] || r["Status Reuniao"] || "",
+    statusComercial: r["Status Comercial"] || "",
+    etapa:           r["Etapa"] || "",
+    area:            r["Área de Atuação"] || r["Area de Atuacao"] || "",
+    renda:           r["Renda Mensal"] || "",
+    obs:             r["Observações"] || r["Obs"] || "",
+  }));
+}
+function normalizePagamentos(rows) {
+  return rows.filter(r => r["Cliente"]).map((r, i) => ({
+    id:         r["#"] || String(i+1),
+    cliente:    r["Cliente"] || "",
+    venc:       r["Vencimento"] || "",
+    pago:       r["Data Pago"] || "",
+    honorarios: parseFloat((r["Honorários (R$)"]||"0").replace(/[^0-9.,]/g,"").replace(",",".")) || 0,
+    comissao:   parseFloat((r["★ Comissão Julia 20%"]||r["Comissão Julia 20%"]||"0").replace(/[^0-9.,]/g,"").replace(",",".")) || 0,
+    status:     r["Status"] || "",
+    forma:      r["Forma"] || "",
+    obs:        r["Obs"] || "",
+  }));
+}
+function normalizeReunioes(rows) {
+  return rows.filter(r => r["Cliente"]).map((r, i) => ({
+    id:        r["#"] || String(i+1),
+    cliente:   r["Cliente"] || "",
+    data:      r["Data"] || "",
+    hora:      r["Horário"] || r["Horario"] || "",
+    tipo:      r["Tipo"] || "",
+    resp:      r["Responsável"] || r["Responsavel"] || "",
+    pauta:     r["Pauta / Notas"] || "",
+    resultado: r["Resultado"] || "",
+    proxima:   r["Próxima Ação"] || r["Proxima Acao"] || "",
+  }));
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+const fmtBRL = (v) => `R$ ${Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+const countIf = (arr, key, val) => arr.filter(r => r[key] === val).length;
+const sumIf   = (arr, condKey, condVal, sumKey) =>
+  arr.filter(r => r[condKey] === condVal).reduce((s,r) => s + (Number(r[sumKey]) || 0), 0);
+
+// ── Subcomponentes ──────────────────────────────────────────────────────────
+const Mono = ({ children, style={} }) => (
+  <span style={{ fontFamily:"'DM Mono',monospace", ...style }}>{children}</span>
+);
+
+function KpiCard({ label, value, color, icon, sub, delay=0 }) {
+  return (
+    <div style={{
+      background: C.card, border: `1px solid ${C.cardB}`,
+      borderTop: `2px solid ${color}`, borderRadius: 14,
+      padding: "22px 24px 20px", position: "relative", overflow: "hidden",
+      animation: `fadeUp .5s ease ${delay}s both`,
+    }}>
+      <div style={{ position:"absolute", top:-24, right:-24, width:80, height:80,
+        borderRadius:"50%", background:color, opacity:.07, filter:"blur(22px)" }} />
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:12 }}>
+        <Mono style={{ fontSize:9, color:C.muted, letterSpacing:".12em", fontWeight:600, lineHeight:1.4 }}>
+          {label}
+        </Mono>
+        <span style={{ color, fontSize:18, opacity:.6 }}>{icon}</span>
+      </div>
+      <div style={{ fontSize:34, fontFamily:"'Syne',sans-serif", fontWeight:800,
+        color, letterSpacing:"-.02em", lineHeight:1 }}>
+        {value}
+      </div>
+      {sub && <div style={{ fontSize:10, color:C.muted, marginTop:8 }}>{sub}</div>}
+    </div>
+  );
+}
+
+function SectionHead({ children, color=C.gold }) {
+  return (
+    <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:18 }}>
+      <div style={{ width:3, height:14, background:color, borderRadius:2, flexShrink:0 }} />
+      <Mono style={{ fontSize:10, color:C.muted, letterSpacing:".14em", fontWeight:600 }}>
+        {children}
+      </Mono>
+    </div>
+  );
+}
+
+function StatusChip({ text }) {
+  const map = {
+    "🟢": { bg:"#0C2318", fg:C.gold },
+    "🔵": { bg:"#0C1823", fg:"#6FA3D4" },
+    "🔴": { bg:"#23100C", fg:C.red },
+    "⏰": { bg:"#23200C", fg:C.sage },
+    "🔄": { bg:"#0C1C23", fg:C.sage },
+    "✅": { bg:"#0C2318", fg:C.gold },
+    "⏳": { bg:"#1A1A0C", fg:C.sage },
+    "❌": { bg:"#23100C", fg:C.red },
+  };
+  const emoji = text?.slice(0,2) || "";
+  const { bg=C.cardB, fg=C.muted } = map[emoji] || {};
+  const label = text?.replace(/^.{2}\s*/,"") || text || "—";
+  return (
+    <span style={{ background:bg, color:fg, fontSize:10, fontWeight:600,
+      padding:"3px 10px", borderRadius:20, whiteSpace:"nowrap",
+      fontFamily:"'DM Mono',monospace", letterSpacing:".05em" }}>
+      {label}
+    </span>
+  );
+}
+
+const TH = ({ children }) => (
+  <th style={{ padding:"11px 16px", textAlign:"left", fontFamily:"'DM Mono',monospace",
+    fontSize:9, color:C.muted, fontWeight:600, letterSpacing:".12em",
+    borderBottom:`1px solid ${C.cardB}`, whiteSpace:"nowrap" }}>
+    {children}
+  </th>
+);
+const TD = ({ children, style={} }) => (
+  <td style={{ padding:"13px 16px", fontSize:12, color:C.text,
+    borderBottom:`1px solid ${C.cardB}`, verticalAlign:"middle", ...style }}>
+    {children}
+  </td>
+);
+
+const CustomTooltip = ({ active, payload, label }) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div style={{ background:C.card, border:`1px solid ${C.cardB}`,
+      borderRadius:8, padding:"10px 14px" }}>
+      {label && <Mono style={{ fontSize:10, color:C.muted, display:"block", marginBottom:4 }}>{label}</Mono>}
+      <Mono style={{ fontSize:13, color:C.gold, fontWeight:600 }}>
+        {typeof payload[0].value === "number" && payload[0].value > 100
+          ? fmtBRL(payload[0].value)
+          : payload[0].value}
+      </Mono>
+    </div>
+  );
+};
+
+// ── App ─────────────────────────────────────────────────────────────────────
+function MEZDashboard() {
+  const [tab, setTab]       = useState("dashboard");
+  const [data, setData]     = useState(DEMO_DATA);
+  const [loading, setLoading] = useState(false);
+  const [isDemo, setIsDemo] = useState(true);
+
+  // Tenta carregar do Sheets se URL configurada
+  useEffect(() => {
+    const urls = Object.values(SHEETS_CONFIG);
+    if (urls.some(u => u.startsWith("COLE") || !u.startsWith("http"))) { setIsDemo(true); return; }
+    setLoading(true);
+    Promise.all(
+      Object.entries(SHEETS_CONFIG).map(([key, url]) =>
+        fetch(url).then(r => r.text()).then(t => {
+          const raw = parseCSV(t);
+          const normalized = key === "cadastro" ? normalizeCadastro(raw)
+            : key === "pagamentos" ? normalizePagamentos(raw)
+            : normalizeReunioes(raw);
+          return [key, normalized];
+        })
+      )
+    ).then(entries => {
+      setData(Object.fromEntries(entries));
+      setIsDemo(false);
+    }).catch(() => setIsDemo(true))
+      .finally(() => setLoading(false));
+  }, []);
+
+  // ── Métricas calculadas ──────────────────────────────────────────────────
+  const cad = data.cadastro;
+  const pag = data.pagamentos;
+  const reu = data.reunioes;
+
+  const totalInd      = cad.length;
+  const reunFeitas    = countIf(cad, "statusReuniao", "✅ Reunião feita");
+  const ativas        = countIf(cad, "statusComercial", "🟢 Fechou");
+  const andamento     = countIf(cad, "statusComercial", "🔵 Em andamento");
+  const naoFechou     = countIf(cad, "statusComercial", "🔴 Não fechou");
+  const aguardando    = cad.filter(r =>
+    r.statusReuniao === "⏰ Aguardando reunião").length;
+  const taxaConv      = reunFeitas > 0 ? Math.round((ativas/reunFeitas)*100) : 0;
+
+  const totalPago     = sumIf(pag, "status", "✅ Pago", "comissao");
+  const pendente      = sumIf(pag, "status", "⏳ Pendente", "comissao");
+  const atrasado      = sumIf(pag, "status", "🔴 Em atraso", "comissao");
+  const honPago       = sumIf(pag, "status", "✅ Pago", "honorarios");
+  const parcPagas     = countIf(pag, "status", "✅ Pago");
+  const parcPend      = countIf(pag, "status", "⏳ Pendente");
+
+  const pieData = [
+    { name:"Fechou",       value: ativas },
+    { name:"Em andamento", value: andamento },
+    { name:"Não fechou",   value: naoFechou },
+    { name:"Aguardando",   value: aguardando },
+  ].filter(d => d.value > 0);
+
+  const barData = [
+    { situacao:"Pago",      valor: totalPago },
+    { situacao:"Pendente",  valor: pendente },
+    { situacao:"Em atraso", valor: atrasado },
+  ];
+
+  const tabs = [
+    { id:"dashboard",  label:"Dashboard" },
+    { id:"cadastro",   label:"Clientes" },
+    { id:"pagamentos", label:"Pagamentos" },
+    { id:"reunioes",   label:"Reuniões" },
+  ];
+
+  return (
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500;600&display=swap');
+        *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+        body { background:${C.bg}; }
+        @keyframes fadeUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+        @keyframes spin   { to{transform:rotate(360deg)} }
+        ::-webkit-scrollbar{width:4px;height:4px}
+        ::-webkit-scrollbar-track{background:${C.bg}}
+        ::-webkit-scrollbar-thumb{background:${C.cardB};border-radius:4px}
+        table{border-collapse:collapse;width:100%}
+        tr:hover td{background:rgba(255,255,255,.018)!important}
+      `}</style>
+
+      <div style={{ minHeight:"100vh", background:C.bg, color:C.text,
+        fontFamily:"'DM Mono',monospace", fontSize:13 }}>
+
+        {/* ── HEADER ─────────────────────────────────────────────────── */}
+        <header style={{ position:"sticky", top:0, zIndex:200,
+          background:`linear-gradient(90deg,${C.card} 0%,${C.bg} 100%)`,
+          borderBottom:`1px solid ${C.cardB}`,
+          display:"flex", alignItems:"center", justifyContent:"space-between",
+          padding:"0 28px", height:60 }}>
+
+          {/* Logo + nome */}
+          <div style={{ display:"flex", alignItems:"center", gap:14 }}>
+            <div style={{ width:34, height:34, background:C.verde,
+              border:`1px solid ${C.forest}`, borderRadius:8,
+              display:"flex", alignItems:"center", justifyContent:"center",
+              fontFamily:"'Syne',sans-serif", fontWeight:800, fontSize:15, color:C.cream }}>
+              M
+            </div>
+            <div>
+              <div style={{ fontFamily:"'Syne',sans-serif", fontWeight:700,
+                fontSize:13, color:C.cream, letterSpacing:"-.01em" }}>
+                MEZ Consultoria
+              </div>
+              <Mono style={{ fontSize:9, color:C.muted, letterSpacing:".1em" }}>
+                PAINEL DE INDICAÇÕES — JULIA
+              </Mono>
+            </div>
+          </div>
+
+          {/* Nav */}
+          <nav style={{ display:"flex", gap:2 }}>
+            {tabs.map(t => (
+              <button key={t.id} onClick={() => setTab(t.id)} style={{
+                padding:"7px 16px", borderRadius:7, border:"none", cursor:"pointer",
+                fontFamily:"'DM Mono',monospace", fontSize:10, fontWeight:600,
+                letterSpacing:".08em", transition:"all .18s",
+                background: tab===t.id ? C.verde : "transparent",
+                color:       tab===t.id ? C.cream : C.muted,
+                outline: tab===t.id ? `1px solid ${C.forest}` : "none",
+              }}>{t.label}</button>
+            ))}
+          </nav>
+
+          {/* Status */}
+          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+            {isDemo && (
+              <Mono style={{ fontSize:9, color:C.sage, background:`${C.forest}30`,
+                padding:"4px 10px", borderRadius:20 }}>
+                DEMONSTRAÇÃO
+              </Mono>
+            )}
+            {loading && (
+              <div style={{ width:14, height:14, border:`2px solid ${C.cardB}`,
+                borderTop:`2px solid ${C.gold}`, borderRadius:"50%",
+                animation:"spin .8s linear infinite" }} />
+            )}
+            <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+              <div style={{ width:6, height:6, borderRadius:"50%", background:C.gold,
+                animation:"fadeIn 1s ease infinite alternate" }} />
+              <Mono style={{ fontSize:9, color:C.muted }}>MAIO 2026</Mono>
+            </div>
+          </div>
+        </header>
+
+        {/* ── CONTEÚDO ───────────────────────────────────────────────── */}
+        <main style={{ padding:"28px 28px 56px", maxWidth:1300, margin:"0 auto" }}>
+
+          {/* ════════════════════════════════════════ DASHBOARD ═══════ */}
+          {tab === "dashboard" && (
+            <div style={{ animation:"fadeIn .3s ease" }}>
+
+              <div style={{ marginBottom:28 }}>
+                <h1 style={{ fontFamily:"'Syne',sans-serif", fontSize:24,
+                  fontWeight:800, color:C.cream, letterSpacing:"-.02em", marginBottom:4 }}>
+                  Visão Geral
+                </h1>
+                <p style={{ fontSize:10, color:C.muted, letterSpacing:".06em" }}>
+                  Clareza muda decisões. Consistência sustenta resultado.
+                </p>
+              </div>
+
+              {/* KPIs */}
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(6,1fr)", gap:10, marginBottom:24 }}>
+                <KpiCard label="INDICAÇÕES"       value={totalInd}     color={C.sage}  icon="◈" delay={.00} />
+                <KpiCard label="REUNIÕES FEITAS"  value={reunFeitas}   color={C.green} icon="◉" delay={.06} />
+                <KpiCard label="CLIENTES ATIVAS"  value={ativas}       color={C.gold}  icon="★" delay={.12} />
+                <KpiCard label="EM ANDAMENTO"     value={andamento}    color={C.forest}icon="◎" delay={.18} />
+                <KpiCard label="PAGO À JULIA"     value={fmtBRL(totalPago)} color={C.cream} icon="◆" delay={.24} />
+                <KpiCard label="COMISSÃO PENDENTE"value={fmtBRL(pendente)}  color={C.red}   icon="◇" delay={.30} />
+              </div>
+
+              {/* Gráficos */}
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:20 }}>
+
+                {/* Pizza donut */}
+                <div style={{ background:C.card, border:`1px solid ${C.cardB}`,
+                  borderRadius:14, padding:24 }}>
+                  <SectionHead>SITUAÇÃO DAS INDICAÇÕES</SectionHead>
+                  <ResponsiveContainer width="100%" height={210}>
+                    <PieChart>
+                      <Pie data={pieData} dataKey="value"
+                        cx="50%" cy="50%" innerRadius={52} outerRadius={88}
+                        paddingAngle={4} strokeWidth={0}>
+                        {pieData.map((_,i) => <Cell key={i} fill={PIE_COLORS[i]} />)}
+                      </Pie>
+                      <Tooltip content={<CustomTooltip />} />
+                      <Legend iconType="circle" iconSize={7}
+                        formatter={v => (
+                          <Mono style={{ fontSize:10, color:C.muted }}>{v}</Mono>
+                        )} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+
+                {/* Barras verticais */}
+                <div style={{ background:C.card, border:`1px solid ${C.cardB}`,
+                  borderRadius:14, padding:24 }}>
+                  <SectionHead>COMISSÃO JULIA — SITUAÇÃO (R$)</SectionHead>
+                  <ResponsiveContainer width="100%" height={210}>
+                    <BarChart data={barData} barSize={48}
+                      margin={{ top:0, right:0, left:10, bottom:0 }}>
+                      <XAxis dataKey="situacao"
+                        tick={{ fill:C.muted, fontSize:10, fontFamily:"'DM Mono',monospace" }}
+                        axisLine={{ stroke:C.cardB }} tickLine={false} />
+                      <YAxis tickFormatter={v=>`R$${v}`}
+                        tick={{ fill:C.muted, fontSize:9, fontFamily:"'DM Mono',monospace" }}
+                        axisLine={false} tickLine={false} />
+                      <Tooltip content={<CustomTooltip />}
+                        cursor={{ fill:"rgba(255,255,255,.04)" }} />
+                      <Bar dataKey="valor" radius={[5,5,0,0]}>
+                        {barData.map((_,i) => <Cell key={i} fill={BAR_COLORS[i]} />)}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Tabelas resumo */}
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
+
+                <div style={{ background:C.card, border:`1px solid ${C.cardB}`, borderRadius:14, padding:24 }}>
+                  <SectionHead>RESUMO DE LEADS</SectionHead>
+                  {[
+                    ["Total de indicações",  totalInd,         C.text],
+                    ["Reuniões realizadas",  reunFeitas,        C.green],
+                    ["Aguardando reunião",   aguardando,        C.muted],
+                    ["Aguardando retorno",   countIf(cad,"statusReuniao","🔄 Aguardando retorno"), C.muted],
+                    ["Clientes ativas",      ativas,            C.gold],
+                    ["Não fecharam",         naoFechou,         C.red],
+                    ["Taxa de conversão",    `${taxaConv}%`,    taxaConv>=50 ? C.green : C.sage],
+                  ].map(([l,v,c], i, arr) => (
+                    <div key={l} style={{ display:"flex", justifyContent:"space-between",
+                      alignItems:"center", padding:"9px 0",
+                      borderBottom: i<arr.length-1 ? `1px solid ${C.cardB}` : "none" }}>
+                      <span style={{ fontSize:11, color:C.muted }}>{l}</span>
+                      <span style={{ fontFamily:"'Syne',sans-serif", fontWeight:700,
+                        fontSize:14, color:c }}>{v}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ background:C.card, border:`1px solid ${C.cardB}`, borderRadius:14, padding:24 }}>
+                  <SectionHead>FINANCEIRO — JULIA</SectionHead>
+                  {[
+                    ["Total honorários (clientes)", fmtBRL(honPago),    C.green],
+                    ["Total pago à Julia",           fmtBRL(totalPago),  C.gold],
+                    ["Comissão pendente",             fmtBRL(pendente),   pendente>0 ? C.red : C.muted],
+                    ["Em atraso",                    fmtBRL(atrasado),   atrasado>0 ? C.red : C.muted],
+                    ["Parcelas pagas",               parcPagas,          C.green],
+                    ["Parcelas pendentes",           parcPend,           C.muted],
+                    ["Clientes em programa",         ativas,             C.gold],
+                  ].map(([l,v,c], i, arr) => (
+                    <div key={l} style={{ display:"flex", justifyContent:"space-between",
+                      alignItems:"center", padding:"9px 0",
+                      borderBottom: i<arr.length-1 ? `1px solid ${C.cardB}` : "none" }}>
+                      <span style={{ fontSize:11, color:C.muted }}>{l}</span>
+                      <span style={{ fontFamily:"'Syne',sans-serif", fontWeight:700,
+                        fontSize:13, color:c }}>{v}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ════════════════════════════════════════ CADASTRO ════════ */}
+          {tab === "cadastro" && (
+            <div style={{ animation:"fadeIn .3s ease" }}>
+              <div style={{ marginBottom:24 }}>
+                <h1 style={{ fontFamily:"'Syne',sans-serif", fontSize:24,
+                  fontWeight:800, color:C.cream, letterSpacing:"-.02em", marginBottom:4 }}>
+                  Clientes Indicados
+                </h1>
+                <p style={{ fontSize:10, color:C.muted, letterSpacing:".06em" }}>
+                  {cad.length} indicações · Todas via Julia
+                </p>
+              </div>
+
+              {/* Cards de status rápido */}
+              <div style={{ display:"flex", gap:10, marginBottom:20, flexWrap:"wrap" }}>
+                {[
+                  { label:"Fecharam",     val:ativas,    color:C.gold },
+                  { label:"Em andamento", val:andamento, color:C.forest },
+                  { label:"Não fecharam", val:naoFechou, color:C.red },
+                  { label:"Aguardando",   val:aguardando,color:C.sage },
+                ].map(({ label, val, color }) => (
+                  <div key={label} style={{ background:C.card,
+                    border:`1px solid ${C.cardB}`, borderLeft:`3px solid ${color}`,
+                    borderRadius:10, padding:"10px 18px",
+                    display:"flex", alignItems:"center", gap:12 }}>
+                    <span style={{ fontFamily:"'Syne',sans-serif", fontWeight:800,
+                      fontSize:20, color }}>{val}</span>
+                    <Mono style={{ fontSize:9, color:C.muted, letterSpacing:".1em" }}>{label}</Mono>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ background:C.card, border:`1px solid ${C.cardB}`,
+                borderRadius:14, overflow:"hidden" }}>
+                <table>
+                  <thead style={{ background:`${C.verde}25` }}>
+                    <tr>
+                      <TH>#</TH><TH>NOME</TH><TH>ÁREA</TH><TH>DATA REUNIÃO</TH>
+                      <TH>STATUS REUNIÃO</TH><TH>STATUS COMERCIAL</TH>
+                      <TH>RENDA</TH><TH>ETAPA</TH>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {cad.map((c,i) => (
+                      <tr key={c.id} style={{ background: i%2===0 ? "transparent" : `${C.white}018` }}>
+                        <TD><Mono style={{ color:C.muted, fontSize:10 }}>{c.id}</Mono></TD>
+                        <TD style={{ color:C.cream, fontWeight:500 }}>{c.nome}</TD>
+                        <TD><Mono style={{ fontSize:10, color:C.muted }}>{c.area || "—"}</Mono></TD>
+                        <TD><Mono style={{ fontSize:10, color:C.muted }}>{c.data}</Mono></TD>
+                        <TD><StatusChip text={c.statusReuniao} /></TD>
+                        <TD><StatusChip text={c.statusComercial} /></TD>
+                        <TD><Mono style={{ fontSize:10, color:C.muted }}>{c.renda || "—"}</Mono></TD>
+                        <TD><Mono style={{ fontSize:10, color:c.etapa ? C.gold : C.muted }}>{c.etapa || "—"}</Mono></TD>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* ════════════════════════════════════════ PAGAMENTOS ══════ */}
+          {tab === "pagamentos" && (
+            <div style={{ animation:"fadeIn .3s ease" }}>
+              <div style={{ marginBottom:24 }}>
+                <h1 style={{ fontFamily:"'Syne',sans-serif", fontSize:24,
+                  fontWeight:800, color:C.cream, letterSpacing:"-.02em", marginBottom:4 }}>
+                  Pagamentos — Comissões Julia
+                </h1>
+                <p style={{ fontSize:10, color:C.muted, letterSpacing:".06em" }}>
+                  Comissão: 20% dos honorários · Pago mês a mês conforme recebimento
+                </p>
+              </div>
+
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:10, marginBottom:20 }}>
+                {[
+                  { label:"TOTAL PAGO À JULIA",    val:fmtBRL(totalPago),  color:C.gold },
+                  { label:"COMISSÃO PENDENTE",      val:fmtBRL(pendente),   color:pendente>0?C.red:C.muted },
+                  { label:"HONORÁRIOS GERADOS",     val:fmtBRL(honPago),    color:C.green },
+                  { label:"PARCELAS PAGAS / TOTAL", val:`${parcPagas} / ${pag.length}`, color:C.forest },
+                ].map(({ label, val, color }, i) => (
+                  <div key={i} style={{ background:C.card,
+                    border:`1px solid ${C.cardB}`, borderTop:`2px solid ${color}`,
+                    borderRadius:12, padding:"18px 20px" }}>
+                    <Mono style={{ fontSize:8, color:C.muted, letterSpacing:".1em",
+                      display:"block", marginBottom:10 }}>{label}</Mono>
+                    <div style={{ fontFamily:"'Syne',sans-serif", fontWeight:800,
+                      fontSize:20, color, letterSpacing:"-.01em" }}>{val}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ background:C.card, border:`1px solid ${C.cardB}`,
+                borderRadius:14, overflow:"hidden" }}>
+                <table>
+                  <thead style={{ background:`${C.verde}25` }}>
+                    <tr>
+                      <TH>#</TH><TH>CLIENTE</TH><TH>VENCIMENTO</TH>
+                      <TH>DATA PAGO</TH><TH>HONORÁRIOS</TH>
+                      <TH>COMISSÃO JULIA 20%</TH><TH>STATUS</TH><TH>FORMA</TH>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pag.map((p,i) => (
+                      <tr key={p.id} style={{ background: i%2===0 ? "transparent" : `${C.white}018` }}>
+                        <TD><Mono style={{ color:C.muted, fontSize:10 }}>{p.id}</Mono></TD>
+                        <TD style={{ color:C.cream }}>{p.cliente}</TD>
+                        <TD><Mono style={{ fontSize:10, color:C.muted }}>{p.venc}</Mono></TD>
+                        <TD><Mono style={{ fontSize:10, color:p.pago ? C.green : C.muted }}>
+                          {p.pago || "—"}</Mono></TD>
+                        <TD style={{ color:p.honorarios>0 ? C.cream : C.muted }}>
+                          {p.honorarios>0 ? fmtBRL(p.honorarios) : "—"}</TD>
+                        <TD style={{ fontFamily:"'Syne',sans-serif", fontWeight:700,
+                          color:p.comissao>0 ? C.gold : C.muted }}>
+                          {p.comissao>0 ? fmtBRL(p.comissao) : "—"}</TD>
+                        <TD><StatusChip text={p.status} /></TD>
+                        <TD><Mono style={{ fontSize:10, color:C.muted }}>{p.forma || "—"}</Mono></TD>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* ════════════════════════════════════════ REUNIÕES ════════ */}
+          {tab === "reunioes" && (
+            <div style={{ animation:"fadeIn .3s ease" }}>
+              <div style={{ marginBottom:24 }}>
+                <h1 style={{ fontFamily:"'Syne',sans-serif", fontSize:24,
+                  fontWeight:800, color:C.cream, letterSpacing:"-.02em", marginBottom:4 }}>
+                  Reuniões
+                </h1>
+                <p style={{ fontSize:10, color:C.muted, letterSpacing:".06em" }}>
+                  {reu.length} reuniões registradas
+                </p>
+              </div>
+              <div style={{ background:C.card, border:`1px solid ${C.cardB}`,
+                borderRadius:14, overflow:"hidden" }}>
+                <table>
+                  <thead style={{ background:`${C.verde}25` }}>
+                    <tr>
+                      <TH>#</TH><TH>CLIENTE</TH><TH>DATA</TH>
+                      <TH>HORÁRIO</TH><TH>TIPO</TH><TH>RESPONSÁVEL</TH>
+                      <TH>RESULTADO</TH><TH>PRÓXIMA AÇÃO</TH>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {reu.map((r,i) => (
+                      <tr key={r.id} style={{ background: i%2===0 ? "transparent" : `${C.white}018` }}>
+                        <TD><Mono style={{ color:C.muted, fontSize:10 }}>{r.id}</Mono></TD>
+                        <TD style={{ color:C.cream }}>{r.cliente}</TD>
+                        <TD><Mono style={{ fontSize:10, color:C.muted }}>{r.data}</Mono></TD>
+                        <TD><Mono style={{ fontSize:10, color:C.muted }}>{r.hora || "—"}</Mono></TD>
+                        <TD><Mono style={{ fontSize:10, color:C.sage }}>{r.tipo}</Mono></TD>
+                        <TD><Mono style={{ fontSize:10, color:C.muted }}>{r.resp}</Mono></TD>
+                        <TD>{r.resultado ? <StatusChip text={r.resultado} /> : <Mono style={{ color:C.muted }}>—</Mono>}</TD>
+                        <TD><Mono style={{ fontSize:10, color:r.proxima ? C.text : C.muted }}>
+                          {r.proxima || "—"}</Mono></TD>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </main>
+
+        {/* ── FOOTER ─────────────────────────────────────────────────── */}
+        <footer style={{ borderTop:`1px solid ${C.cardB}`, padding:"14px 28px",
+          display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+          <Mono style={{ fontSize:9, color:C.muted, letterSpacing:".1em" }}>
+            MEZ CONSULTORIA FINANCEIRA
+          </Mono>
+          <Mono style={{ fontSize:9, color:C.muted, fontStyle:"italic" }}>
+            Clareza muda decisões. Consistência sustenta resultado.
+          </Mono>
+        </footer>
+      </div>
+    </>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(MEZDashboard));
+</script>
+</body>
+</html>
